@@ -1,4 +1,11 @@
 //Maciej Andrearczyk, 333856
+//Proces klienta.
+//
+//Wysyła żądanie.
+//Czeka na odpowiedź.
+//Wiesza się.
+//Wysyła informację o zakończeniu.
+//Kończy się.
 #include "stdio.h"
 #include "stdlib.h"
 #include "err.h"
@@ -26,40 +33,66 @@ int n;
 int s;
 
 /*
- * Id kolejki to wysylania komunikatow.
+ * Id kolejki do wysylania requestow.
  */
-int snd_qid;
+int req_qid;
 
 /*
- * Id kolejki to odbierania komunikatow.
+ * Id kolejki do odbierania potwierdzeń. 
  */
-int rcv_qid;
+int conf_qid;
 
 /*
- * Wiadomość z żądaniem.
+ * Id kolejki do wysylania informacji o zakonczeniu przetwarzania.
  */ 
-Msg req;
+int fin_qid;
+
+/*
+ * Wiadomość.
+ */ 
+Msg msg;
+
+/*
+ * Zwraca pid jako long.
+ */
+long mypid()
+{
+	return getpid();
+}
 
 int main(int argc, char* argv[]) 
 {
+	if (argc != 4)
+		syserr("Improper number of arguments\n");
+
 	k = atoi(argv[1]);
 	n = atoi(argv[2]);
 	s = atoi(argv[3]);
 
-	req.msg_type = 1L;
+	msg.msg_type = mypid();
+	sprintf(msg.data, "%d %d %li", k, n, mypid());
 
-	printf("MOJ PID %d\n", getpid());
-	sprintf(req.data, "%d %d %d", n, k, getpid());
+	if ( (req_qid = msgget(REQ_KEY, 0)) == -1)
+		syserr("Error in msgget | reqkey\n");
 
-	if ( (snd_qid = msgget(CLI_TO_SER, 0)) == -1)
-		syserr("Error in msgget\n");
+	if ( (conf_qid = msgget(CONF_KEY, 0)) == -1)
+		syserr("Error in msgget | confkey\n");
+
+	if ( (fin_qid = msgget(FIN_KEY, 0)) == -1)
+		syserr("Error in msgget | finkey\n");
+
+	if ( msgsnd(req_qid, (char *) &msg, strlen(msg.data), 0) != 0 )
+		syserr("Error in msgsnd | request\n");
+
+	//if (msgrcv(conf_qid, &msg, MAX_DATA_SIZE, mypid(), 0) == -1)
+	//	syserr("Error in msgrcv\n");
 	
-	if ( (rcv_qid = msgget(SER_TO_CLI, 0)) == -1)
-		syserr("Error in msgget\n");
+	printf("%d %d %li %s\n", k, n, mypid(), msg.data);
+	sleep(s);
 
-	if ( msgsnd(snd_qid, (char *) &req, strlen(req.data), 0) != 0 )
-		syserr("Error in msgsnd");
+	//if ( msgsnd(fin_qid, (char *) &msg, strlen(msg.data), 0) != 0)
+	//	syserr("Error in msgsnd | finish\n");
 
-	printf("KONIEC\n");
+	printf("KONIEC %li\n", mypid());
 	exit(0);
 }
