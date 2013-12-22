@@ -1,14 +1,15 @@
 CFLAGS=-Wall -std=c99
 S=serwer.c
 K=klient.c
+E=err.c
 
 all: serwer klient
 
-serwer: $(S)
-	gcc $(CFLAGS) $(S) -o serwer
+serwer: $(S) $(E)
+	gcc $(CFLAGS) $(S) $(E) -o serwer
 
-klient: $(K)
-	gcc $(CFLAGS) $(K) -o klient
+klient: $(K) $(E)
+	gcc $(CFLAGS) $(K) $(E) -o klient
 
 clean:
 	rm -f serwer klient
