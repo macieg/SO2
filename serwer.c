@@ -170,7 +170,6 @@ void *do_thread(void *data)
  */
 void setFlag()
 {
-	//printf("Ustawiam isStopped\n");
 	isStopped = 1;
 }
 
@@ -179,8 +178,6 @@ void setFlag()
  */
 void free_sysres()
 {
-	//printf("\nZWALNIAM ZASOBY!\n");
-
 	if (msgctl(req_qid, IPC_RMID, 0) == -1)
 		syserr("Error in msgctl\n");
 
@@ -200,8 +197,6 @@ void free_sysres()
 
 	if (pthread_mutex_destroy(&mutex) != 0)
 		syserr("Error in destroy mutex \n");
-
-	//printf("\nZWOLNILEM\n");	
 }
 
 /*
