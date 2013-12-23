@@ -123,6 +123,7 @@ void *do_thread(void *data)
 	printf("Wątek %ld przydziela %d+%d zasobów %d klientom %d %d, pozostało %d zasobów\n",
 			(long)pthread_self(), n_1, n_2, th_k, pid_1, pid_2, resources[th_k]);
 
+	fflush(stdout);
 	if (pthread_mutex_unlock(&mutex) != 0)
 	       syserr("Error in mutex unlock | thread 1\n");	
 	///MUTEX UNLOCK
