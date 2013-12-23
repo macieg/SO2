@@ -1,4 +1,4 @@
-CFLAGS=-Wall -std=c99
+CFLAGS=-Wall
 S=serwer.c
 K=klient.c
 E=err.c

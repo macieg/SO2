@@ -50,15 +50,7 @@ int fin_qid;
 /*
  * Wiadomość.
  */ 
-Msg msg;
-
-/*
- * Zwraca pid jako long.
- */
-long mypid()
-{
-	return getpid();
-}
+Msg msg, rcv;
 
 int main(int argc, char* argv[]) 
 {
@@ -69,8 +61,9 @@ int main(int argc, char* argv[])
 	n = atoi(argv[2]);
 	s = atoi(argv[3]);
 
-	msg.msg_type = mypid();
-	sprintf(msg.data, "%d %d %li", k, n, mypid());
+	long mypid = getpid();
+	msg.msg_type = mypid;
+	sprintf(msg.data, "%d %d %li", k, n, mypid);
 
 	if ( (req_qid = msgget(REQ_KEY, 0)) == -1)
 		syserr("Error in msgget | reqkey\n");
@@ -84,15 +77,15 @@ int main(int argc, char* argv[])
 	if ( msgsnd(req_qid, (char *) &msg, strlen(msg.data), 0) != 0 )
 		syserr("Error in msgsnd | request\n");
 
-	//if (msgrcv(conf_qid, &msg, MAX_DATA_SIZE, mypid(), 0) == -1)
-	//	syserr("Error in msgrcv\n");
+	if ( msgrcv(conf_qid, &rcv, MAX_DATA_SIZE, mypid, 0) == -1)
+		syserr("Error in msgrcv\n");
 	
-	printf("%d %d %li %s\n", k, n, mypid(), msg.data);
+	printf("%d %d %li %s\n", k, n, mypid, rcv.data);
 	sleep(s);
 
-	//if ( msgsnd(fin_qid, (char *) &msg, strlen(msg.data), 0) != 0)
-	//	syserr("Error in msgsnd | finish\n");
+	if ( msgsnd(fin_qid, (char *) &msg, strlen(msg.data), 0) != 0)
+		syserr("Error in msgsnd | finish\n");
 
-	printf("KONIEC %li\n", mypid());
+	printf("KONIEC %li\n", mypid);
 	exit(0);
 }
