@@ -1,6 +1,10 @@
 //Maciej Andrearczyk, 333856
 //
 //Proces serwera.
+//Jeden muteks do ochrony zmiennych,
+//zmienna warunkowa na każdy typ zasobów.
+//Przy otrzymaniu SIG_INT czekam, az wszystkie wątki się zakończą
+//po czym usuwam kolejki.
 #include "err.h"
 #include "mesg.h"
 #include <sys/types.h>
@@ -110,7 +114,8 @@ void *do_thread(void *data)
 	thread_counter++;
 
 	while (resources[th_k] < n_1 + n_2)
-		pthread_cond_wait(type_cond + th_k, &mutex);
+		if (pthread_cond_wait(type_cond + th_k, &mutex) != 0)
+			syserr("Error in cond wait type_cond\n");
 
 	resources[th_k] -= n_1;
 	resources[th_k] -= n_2;
@@ -146,14 +151,16 @@ void *do_thread(void *data)
 
 	resources[th_k] += n_1;
 	resources[th_k] += n_2;
-	pthread_cond_signal(type_cond + th_k);
+	if (pthread_cond_signal(type_cond + th_k) != 0)
+		syserr("Error in cond signal type_cond\n");
 
 	thread_counter--;
 	if (pthread_mutex_unlock(&mutex) != 0)
 		syserr("Error in unlock | thread 2\n");
 	//MUTEX UNLOCK
 	
-	pthread_cond_signal(&fin_cond);
+	if (pthread_cond_signal(&fin_cond) != 0)
+		syserr("Error in cond signal fin_cond\n");
 	free(data);
 	return 0;
 }
@@ -202,6 +209,7 @@ void free_sysres()
  */
 void create_thread_tools()
 {
+	atexit(free_sysres);
 	if ((pthread_mutex_init(&mutex, 0)) != 0)
 		syserr("mutex init\n");
 
@@ -226,22 +234,13 @@ void create_thread_tools()
 void create_queues()
 {
 	if ( (req_qid = msgget(REQ_KEY, 0666 | IPC_CREAT | IPC_EXCL)) == -1)
-	{
-		free_sysres();
 		syserr("Error in msgget | request\n");
-	}
 
 	if ( (conf_qid = msgget(CONF_KEY, 0666 | IPC_CREAT | IPC_EXCL)) == -1)
-	{
-		free_sysres();
 		syserr("Error in msgget | confirmation\n");
-	}
 
 	if ( (fin_qid = msgget(FIN_KEY, 0666 | IPC_CREAT | IPC_EXCL)) == -1)
-	{
-		free_sysres();
 		syserr("Error in msgget | finish\n");
-	}
 }
 
 int main(int argc, char* argv[])
@@ -288,13 +287,14 @@ int main(int argc, char* argv[])
 					type_pid[k_req], type_N[k_req]);
 			type_pid[k_req] = 0;
 			type_N[k_req] = 0;
-			pthread_create(&th, &attr, do_thread, msg_buf);
+			if (pthread_create(&th, &attr, do_thread, msg_buf) != 0)
+				syserr("Error in pthread_create\n");
 		}
 	}
 
 	while (thread_counter > 0)
-		pthread_cond_wait(&fin_cond, &mutex);
+		if (pthread_cond_wait(&fin_cond, &mutex) != 0)
+			syserr("Error in cond wait\n");
 
-	free_sysres();
 	exit(0);
 }

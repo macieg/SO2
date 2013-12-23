@@ -48,9 +48,9 @@ int conf_qid;
 int fin_qid;
 
 /*
- * Wiadomość.
+ * Wiadomości.
  */ 
-Msg msg, rcv;
+Msg snd, rcv;
 
 int main(int argc, char* argv[]) 
 {
@@ -62,8 +62,8 @@ int main(int argc, char* argv[])
 	s = atoi(argv[3]);
 
 	long mypid = getpid();
-	msg.msg_type = mypid;
-	sprintf(msg.data, "%d %d %li", k, n, mypid);
+	snd.msg_type = mypid;
+	sprintf(snd.data, "%d %d %li", k, n, mypid);
 
 	if ( (req_qid = msgget(REQ_KEY, 0)) == -1)
 		syserr("Error in msgget | reqkey\n");
@@ -74,7 +74,7 @@ int main(int argc, char* argv[])
 	if ( (fin_qid = msgget(FIN_KEY, 0)) == -1)
 		syserr("Error in msgget | finkey\n");
 
-	if ( msgsnd(req_qid, (char *) &msg, strlen(msg.data), 0) != 0 )
+	if ( msgsnd(req_qid, (char *) &snd, strlen(snd.data), 0) != 0 )
 		syserr("Error in msgsnd | request\n");
 
 	if ( msgrcv(conf_qid, &rcv, MAX_DATA_SIZE, mypid, 0) == -1)
@@ -83,7 +83,7 @@ int main(int argc, char* argv[])
 	printf("%d %d %li %s\n", k, n, mypid, rcv.data);
 	sleep(s);
 
-	if ( msgsnd(fin_qid, (char *) &msg, strlen(msg.data), 0) != 0)
+	if ( msgsnd(fin_qid, (char *) &snd, strlen(snd.data), 0) != 0)
 		syserr("Error in msgsnd | finish\n");
 
 	printf("KONIEC %li\n", mypid);
