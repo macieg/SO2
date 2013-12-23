@@ -154,7 +154,8 @@ void *do_thread(void *data)
 	//MUTEX UNLOCK
 	
 	pthread_cond_signal(&fin_cond);
-	exit(0);
+	free(data);
+	return 0;
 }
 
 /*
@@ -162,7 +163,7 @@ void *do_thread(void *data)
  */
 void setFlag()
 {
-	printf("Ustawiam isStopped\n");
+	//printf("Ustawiam isStopped\n");
 	isStopped = 1;
 }
 
@@ -171,7 +172,7 @@ void setFlag()
  */
 void free_sysres()
 {
-	printf("\nZWALNIAM ZASOBY!\n");
+	//printf("\nZWALNIAM ZASOBY!\n");
 
 	if (msgctl(req_qid, IPC_RMID, 0) == -1)
 		syserr("Error in msgctl\n");
@@ -193,7 +194,7 @@ void free_sysres()
 	if (pthread_mutex_destroy(&mutex) != 0)
 		syserr("Error in destroy mutex \n");
 
-	printf("\nZWOLNILEM\n");	
+	//printf("\nZWOLNILEM\n");	
 }
 
 /*
@@ -268,7 +269,6 @@ int main(int argc, char* argv[])
 	create_queues();
 
 	int size_rcv;
-	char msg_buf[100];
 	while((size_rcv = msgrcv(req_qid, &msg, MAX_DATA_SIZE, 0, 0)) && isStopped == 0)
 	{
 
@@ -282,6 +282,7 @@ int main(int argc, char* argv[])
 		}
 		else
 		{
+			char * msg_buf = malloc(100 * sizeof(int));
 			pthread_t th;
 			sprintf(msg_buf, "%d %li %d %d %d", k_req, msg.msg_type, n_req,
 					type_pid[k_req], type_N[k_req]);
