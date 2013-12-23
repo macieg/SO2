@@ -98,55 +98,63 @@ struct sigaction sig_helper;
  */
 void *do_thread(void *data)
 {
-	//printf("WĄTECZEK!\n");
-
 	Msg th_msg;
 	int th_k, n_1, n_2;
 	int pid_1, pid_2;
 
 	sscanf((char*) data, "%d %d %d %d %d", &th_k, &pid_1, &n_1, &pid_2, &n_2);
-	//printf("AA %d %d %d %d %d\n", th_k, pid_1, n_1, pid_2, n_2);
 
 	//MUTEX LOCK
-	pthread_mutex_lock(&mutex);
+	if (pthread_mutex_lock(&mutex) != 0)
+		syserr("Error in mutex lock | thread 1\n");
 	thread_counter++;
 
 	while (resources[th_k] < n_1 + n_2)
 		pthread_cond_wait(type_cond + th_k, &mutex);
 
+	resources[th_k] -= n_1;
+	resources[th_k] -= n_2;
+
+	printf("Wątek %ld przydziela %d+%d zasobów %d klientom %d %d, pozostało %d zasobów\n",
+			(long)pthread_self(), n_1, n_2, th_k, pid_1, pid_2, resources[th_k]);
+
+	if (pthread_mutex_unlock(&mutex) != 0)
+	       syserr("Error in mutex unlock | thread 1\n");	
+	///MUTEX UNLOCK
+	
 	th_msg.msg_type = pid_1;
 	strcpy(th_msg.data, "");
 	sprintf(th_msg.data, "%d", pid_2);
-	printf("CO TO KURWA %s %d\n", th_msg.data, (int)strlen(th_msg.data));
 	if ( msgsnd(conf_qid, (char *) &th_msg, strlen(th_msg.data), 0) != 0)
 		syserr("Error in msgsnd | conf pid1\n");
 
 	th_msg.msg_type = pid_2;
 	strcpy(th_msg.data, "");
 	sprintf(th_msg.data, "%d", pid_1);
-	printf("CO TO KURWA %s %d\n", th_msg.data, (int)strlen(th_msg.data));
 	if ( msgsnd(conf_qid, (char *) &th_msg, strlen(th_msg.data), 0) != 0) 
 		syserr("Error in msgsnd | conf pid2\n");
 
-	resources[th_k] -= n_1;
-	resources[th_k] -= n_2;
-	printf("Wątek %ld przydziela %d+%d zasobów %d klientom %d %d, pozostało %d zasobów\n",
-			(long)pthread_self, n_1, n_2, th_k, pid_1, pid_2, resources[th_k]);
-
 	if ( msgrcv(fin_qid, &th_msg, MAX_DATA_SIZE, pid_1, 0) == -1)
-		syserr("Error in msgrcv | fin_qid pid 1");
+		syserr("Error in msgrcv | fin_qid pid 1\n");
 
 	if ( msgrcv(fin_qid, &th_msg, MAX_DATA_SIZE, pid_2, 0) == -1)
-		syserr("Error in msgrcv | fin_qid pid 2");
+		syserr("Error in msgrcv | fin_qid pid 2\n");
+
+	//MUTEX LOCK
+	if (pthread_mutex_lock(&mutex) != 0)
+		syserr("Error in lock | thread 2\n");
 
 	resources[th_k] += n_1;
 	resources[th_k] += n_2;
+	pthread_cond_signal(type_cond + th_k);
 
 	thread_counter--;
-	pthread_mutex_unlock(&mutex);
-	///MUTEX UNLOCK
+	if (pthread_mutex_unlock(&mutex) != 0)
+		syserr("Error in unlock | thread 2\n");
+	//MUTEX UNLOCK
+	
 	pthread_cond_signal(&fin_cond);
-	return 0;
+	exit(0);
 }
 
 /*
@@ -154,7 +162,7 @@ void *do_thread(void *data)
  */
 void setFlag()
 {
-	//printf("Ustawiam isStopped\n");
+	printf("Ustawiam isStopped\n");
 	isStopped = 1;
 }
 
@@ -163,7 +171,7 @@ void setFlag()
  */
 void free_sysres()
 {
-	//printf("\nZWALNIAM ZASOBY!\n");
+	printf("\nZWALNIAM ZASOBY!\n");
 
 	if (msgctl(req_qid, IPC_RMID, 0) == -1)
 		syserr("Error in msgctl\n");
@@ -185,7 +193,7 @@ void free_sysres()
 	if (pthread_mutex_destroy(&mutex) != 0)
 		syserr("Error in destroy mutex \n");
 
-	//printf("\nZWOLNILEM\n");	
+	printf("\nZWOLNILEM\n");	
 }
 
 /*
@@ -263,7 +271,6 @@ int main(int argc, char* argv[])
 	char msg_buf[100];
 	while((size_rcv = msgrcv(req_qid, &msg, MAX_DATA_SIZE, 0, 0)) && isStopped == 0)
 	{
-		printf("DOSTALEM REQUEST! :) %s\n", msg.data);
 
 		int k_req, n_req;
 		sscanf(msg.data, "%d %d", &k_req, &n_req);
@@ -285,10 +292,7 @@ int main(int argc, char* argv[])
 	}
 
 	while (thread_counter > 0)
-	{
-		//printf("SIGNAL, czekam na koniec watkow\n");
 		pthread_cond_wait(&fin_cond, &mutex);
-	}
 
 	free_sysres();
 	exit(0);
